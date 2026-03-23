@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Log In — StudyCircle{% endblock %}
+
+{% block content %}
+<section class="sc-form-sec">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-lg-5 col-md-7">
+
+        <!-- Page heading -->
+        <div class="text-center mb-4">
+          <span style="font-size:2.2rem; color:var(--acc);">&#9678;</span>
+          <h1 class="sc-form-title mt-2">Welcome Back</h1>
+          <p style="color:var(--mut); font-size:.9rem; margin-bottom:0;">
+            Enter the email you used when joining or creating a group.
+          </p>
+        </div>
+
+        <!-- Login form card -->
+        <div class="sc-form-card">
+
+          <div class="sc-info-banner mb-4">
+            <i class="bi bi-info-circle-fill me-2"></i>
+            No password needed — just your <strong>registered college email</strong>.
+          </div>
+
+          <form method="POST" action="{{ url_for('login') }}" novalidate>
+
+            <div class="sc-fg">
+              <label class="sc-lbl" for="email">
+                College Email <span class="req">*</span>
+              </label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                class="form-control sc-inp"
+                placeholder="e.g. arjun@college.edu"
+                autocomplete="email"
+                autofocus
+                required
+              />
+              <div class="sc-hint">
+                Must match the email you entered when joining or creating a group.
+              </div>
+            </div>
+
+            <button type="submit" class="btn sc-btn-acc w-100 py-2 mt-2"
+                    style="font-size:1rem;">
+              <i class="bi bi-box-arrow-in-right me-2"></i>Log In
+            </button>
+
+          </form>
+        </div>
+
+        <!-- Sign up hint -->
+        <div class="text-center mt-4" style="font-size:.85rem; color:var(--mut);">
+          <p class="mb-1">
+            New here?
+            <a href="{{ url_for('index') }}"
+               style="color:var(--acc); text-decoration:none; font-weight:600;">
+              Browse groups
+            </a>
+            and join one first.
+          </p>
+          <p class="mb-0">
+            Or
+            <a href="{{ url_for('create') }}"
+               style="color:var(--acc); text-decoration:none; font-weight:600;">
+              create your own group
+            </a>
+            — you'll be logged in automatically.
+          </p>
+        </div>
+
+        <!-- Demo accounts box — remove before final submission -->
+        <div class="mt-4 p-3"
+             style="background:var(--soft); border:1px solid var(--bdr);
+                    border-radius:var(--r); font-size:.78rem; color:var(--mut);">
+          <strong style="color:var(--brand); font-size:.82rem;">
+            <i class="bi bi-lightbulb-fill me-1" style="color:var(--acc);"></i>
+            Demo — log in with any of these emails:
+          </strong>
+          <div class="mt-2" style="display:grid; grid-template-columns:1fr 1fr; gap:.3rem .5rem;">
+            <span><i class="bi bi-dot"></i>arjun@college.edu</span>
+            <span><i class="bi bi-dot"></i>priya@uni.edu</span>
+            <span><i class="bi bi-dot"></i>rahul@college.edu</span>
+            <span><i class="bi bi-dot"></i>sneha@tech.edu</span>
+            <span><i class="bi bi-dot"></i>vikram@college.edu</span>
+            <span><i class="bi bi-dot"></i>meera@uni.edu</span>
+            <span><i class="bi bi-dot"></i>kiran@college.edu</span>
+            <span><i class="bi bi-dot"></i>divya@arts.edu</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

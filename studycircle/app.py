@@ -4,7 +4,7 @@ import sqlite3, re, os
 from datetime import datetime
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "change-this-in-production")
+app.secret_key = os.environ.get("SECRET_KEY", "studycircle_secret_key_2024")
 DB = "studycircle.db"
 
 # ─────────────────────────── DB helpers ──────────────────────────────────────
@@ -39,17 +39,31 @@ def pending_count(db, gid):
         (gid,)
     ).fetchone()[0]
 
-# ─────────────────────────── Auth helper ─────────────────────────────────────
+# ─────────────────────────── Auth helpers ────────────────────────────────────
+
+def current_user():
+    """Return logged-in email from session, or None."""
+    return session.get("user_email")
+
 
 def require_organiser(gid):
-    """Abort 403 if the current session is not the organiser of this group."""
+    """
+    Redirects to login if not logged in.
+    Aborts with 403 if logged-in user is NOT the organiser of this group.
+    Compares session email against contact_email in DB —
+    works for ALL groups including seeded ones.
+    """
+    email = current_user()
+    if not email:
+        flash("Please log in to access the admin panel.", "warning")
+        abort(redirect(url_for("login", next=request.url)))
+
     grp = get_db().execute(
         "SELECT contact_email FROM study_groups WHERE id=?", (gid,)
     ).fetchone()
     if not grp:
         abort(404)
-    organiser_map = session.get("organiser_of", {})
-    if organiser_map.get(str(gid)) != grp["contact_email"]:
+    if email.lower() != grp["contact_email"].lower():
         abort(403)
 
 # ─────────────────────────── DB init + seed ──────────────────────────────────
@@ -180,17 +194,15 @@ def init_db():
             VALUES (?,?,?,?,?,?,?,?,?,?)
         """, (*g_data, t)).lastrowid
 
-        gname       = g_data[0]
-        gorganiser  = g_data[6]
-        gorg_email  = g_data[7]
+        gname      = g_data[0]
+        gorganiser = g_data[6]
+        gorg_email = g_data[7]
 
-        # organiser as first member
         db.execute("""
             INSERT INTO members (group_id,full_name,email,student_id,role,joined_at)
             VALUES (?,?,?,?,?,?)
         """, (gid, gorganiser, gorg_email, "ORGANISER", "organiser", t))
 
-        # welcome announcement
         db.execute("""
             INSERT INTO announcements (group_id,title,body,posted_at)
             VALUES (?,?,?,?)
@@ -200,7 +212,6 @@ def init_db():
               "Please introduce yourself in the discussion thread below.",
               t))
 
-        # first discussion post
         db.execute("""
             INSERT INTO discussions (group_id,author,email,message,parent_id,posted_at)
             VALUES (?,?,?,?,?,?)
@@ -208,7 +219,6 @@ def init_db():
               "Welcome everyone! Drop a quick intro below — your name, year, and what you're hoping to get out of this group.",
               None, t))
 
-    # Seed a few pending requests for group 1
     for req in [
         ("Anjali Mehta", "anjali@college.edu", "21CS045", "3rd Year",
          "I want to crack FAANG. I need a disciplined group to practice DSA daily. "
@@ -223,7 +233,6 @@ def init_db():
             VALUES (1,?,?,?,?,?,'pending',?)
         """, (*req, t))
 
-    # Add some extra members to groups 3, 4, 5 to make them feel populated
     extras = {
         3: [("Pooja Singh","pooja@college.edu","21PH012"),
             ("Aditya Roy","aditya@college.edu","20PH034"),
@@ -242,6 +251,46 @@ def init_db():
 
     db.commit()
     db.close()
+
+# ─────────────────────────── Login / Logout ──────────────────────────────────
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if current_user():
+        return redirect(url_for("dashboard"))
+
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+
+        if not valid_email(email):
+            flash("Enter a valid email address.", "danger")
+            return render_template("login.html")
+
+        db = get_db()
+        member_row = db.execute(
+            "SELECT full_name FROM members WHERE LOWER(email)=?", (email,)
+        ).fetchone()
+
+        if not member_row:
+            flash("No account found with that email. Join a group first or create one.", "warning")
+            return render_template("login.html")
+
+        session["user_email"] = email
+        session["user_name"]  = member_row["full_name"]
+        session.modified = True
+
+        next_url = request.args.get("next")
+        flash(f"Welcome back, {member_row['full_name']}!", "success")
+        return redirect(next_url or url_for("dashboard"))
+
+    return render_template("login.html")
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    flash("You've been logged out.", "success")
+    return redirect(url_for("index"))
 
 # ─────────────────────────── Routes ──────────────────────────────────────────
 
@@ -298,12 +347,10 @@ def group_detail(gid):
     announcements = db.execute(
         "SELECT * FROM announcements WHERE group_id=? ORDER BY posted_at DESC", (gid,)
     ).fetchall()
-    # top-level discussions
     top_posts = db.execute(
         "SELECT * FROM discussions WHERE group_id=? AND parent_id IS NULL ORDER BY posted_at DESC",
         (gid,)
     ).fetchall()
-    # replies keyed by parent_id
     replies_raw = db.execute(
         "SELECT * FROM discussions WHERE group_id=? AND parent_id IS NOT NULL ORDER BY posted_at",
         (gid,)
@@ -312,9 +359,10 @@ def group_detail(gid):
     for r in replies_raw:
         replies.setdefault(r["parent_id"], []).append(dict(r))
 
-    # Pass whether the current session user is the organiser (for showing admin link)
+    # Show admin link only to the actual organiser
     is_organiser = (
-        session.get("organiser_of", {}).get(str(gid)) == group["contact_email"]
+        current_user() and
+        current_user().lower() == group["contact_email"].lower()
     )
 
     return render_template("group_detail.html",
@@ -367,7 +415,6 @@ def join_group(gid):
 
     mc = member_count(db, gid)
 
-    # Block access if full or closed
     if mc >= group["max_members"]:
         flash("This group is full and not accepting new members.", "warning")
         return redirect(url_for("group_detail", gid=gid))
@@ -383,8 +430,6 @@ def join_group(gid):
         reason        = request.form.get("reason", "").strip()
 
         errors = []
-
-        # ── Field-level validation ─────────────────────────────────────────
         if len(full_name) < 3:
             errors.append("Full name must be at least 3 characters.")
         if not valid_email(email):
@@ -396,9 +441,7 @@ def join_group(gid):
         if len(reason) < 20:
             errors.append("Please write at least 20 characters explaining why you want to join.")
 
-        # ── Business rule validation ──────────────────────────────────────
         if not errors:
-            # Already a member?
             already_member = db.execute(
                 "SELECT id FROM members WHERE group_id=? AND LOWER(email)=LOWER(?)",
                 (gid, email)
@@ -406,7 +449,6 @@ def join_group(gid):
             if already_member:
                 errors.append("This email address is already registered as a member of this group.")
 
-            # Already has a pending request?
             already_pending = db.execute(
                 "SELECT id FROM join_requests WHERE group_id=? AND LOWER(email)=LOWER(?) AND status='pending'",
                 (gid, email)
@@ -414,7 +456,6 @@ def join_group(gid):
             if already_pending:
                 errors.append("A join request from this email is already pending approval. Please wait for the organiser to review it.")
 
-            # Previously rejected?
             was_rejected = db.execute(
                 "SELECT id FROM join_requests WHERE group_id=? AND LOWER(email)=LOWER(?) AND status='rejected'",
                 (gid, email)
@@ -422,7 +463,6 @@ def join_group(gid):
             if was_rejected:
                 errors.append("A previous join request from this email was rejected. Please contact the organiser directly.")
 
-            # Re-check capacity at submit time
             mc_now = member_count(db, gid)
             if mc_now >= group["max_members"]:
                 errors.append("Sorry, this group just became full. Please check back later.")
@@ -497,13 +537,11 @@ def create():
         """, (name, subject, description, location, schedule, max_int,
               organiser, contact_email, tags, ts())).lastrowid
 
-        # Organiser auto-added as member
         db.execute("""
             INSERT INTO members (group_id,full_name,email,student_id,role,joined_at)
             VALUES (?,?,?,?,?,?)
         """, (gid, organiser, contact_email, "ORGANISER", "organiser", ts()))
 
-        # Welcome announcement
         db.execute("""
             INSERT INTO announcements (group_id,title,body,posted_at)
             VALUES (?,?,?,?)
@@ -512,8 +550,9 @@ def create():
               ts()))
         db.commit()
 
-        # ── FIX: store organiser identity in session ───────────────────────
-        session.setdefault("organiser_of", {})[str(gid)] = contact_email
+        # Auto log them in as the organiser after creating
+        session["user_email"] = contact_email.lower()
+        session["user_name"]  = organiser
         session.modified = True
 
         return redirect(url_for("success", action="created", group_name=name))
@@ -521,28 +560,28 @@ def create():
     return render_template("create.html", form_data={})
 
 
-# ─────────────────────────── Admin routes (organiser-only) ───────────────────
+# ─────────────────── Admin routes — organiser only ───────────────────────────
 
 @app.route("/admin/<int:gid>")
 def admin_panel(gid):
-    require_organiser(gid)   # ← blocks anyone who isn't the organiser
+    require_organiser(gid)          # ← BLOCKS anyone who is not the organiser
 
     db    = get_db()
     group = db.execute("SELECT * FROM study_groups WHERE id=?", (gid,)).fetchone()
 
-    pending   = db.execute(
+    pending  = db.execute(
         "SELECT * FROM join_requests WHERE group_id=? AND status='pending' ORDER BY requested_at",
         (gid,)
     ).fetchall()
-    approved  = db.execute(
+    approved = db.execute(
         "SELECT * FROM join_requests WHERE group_id=? AND status='approved' ORDER BY requested_at DESC LIMIT 10",
         (gid,)
     ).fetchall()
-    rejected  = db.execute(
+    rejected = db.execute(
         "SELECT * FROM join_requests WHERE group_id=? AND status='rejected' ORDER BY requested_at DESC LIMIT 10",
         (gid,)
     ).fetchall()
-    members   = db.execute(
+    members  = db.execute(
         "SELECT * FROM members WHERE group_id=? ORDER BY role DESC, joined_at", (gid,)
     ).fetchall()
     mc = member_count(db, gid)
@@ -555,7 +594,7 @@ def admin_panel(gid):
 
 @app.route("/admin/<int:gid>/approve/<int:rid>", methods=["POST"])
 def approve_request(gid, rid):
-    require_organiser(gid)   # ← blocks anyone who isn't the organiser
+    require_organiser(gid)          # ← BLOCKS anyone who is not the organiser
 
     db  = get_db()
     req = db.execute(
@@ -585,7 +624,7 @@ def approve_request(gid, rid):
 
 @app.route("/admin/<int:gid>/reject/<int:rid>", methods=["POST"])
 def reject_request(gid, rid):
-    require_organiser(gid)   # ← blocks anyone who isn't the organiser
+    require_organiser(gid)          # ← BLOCKS anyone who is not the organiser
 
     db  = get_db()
     req = db.execute(
@@ -602,7 +641,7 @@ def reject_request(gid, rid):
 
 @app.route("/admin/<int:gid>/remove/<int:mid>", methods=["POST"])
 def remove_member(gid, mid):
-    require_organiser(gid)   # ← blocks anyone who isn't the organiser
+    require_organiser(gid)          # ← BLOCKS anyone who is not the organiser
 
     db = get_db()
     m  = db.execute("SELECT * FROM members WHERE id=? AND group_id=?", (mid, gid)).fetchone()
@@ -619,7 +658,7 @@ def remove_member(gid, mid):
 
 @app.route("/admin/<int:gid>/announce", methods=["POST"])
 def post_announcement(gid):
-    require_organiser(gid)   # ← blocks anyone who isn't the organiser
+    require_organiser(gid)          # ← BLOCKS anyone who is not the organiser
 
     db    = get_db()
     group = db.execute("SELECT id FROM study_groups WHERE id=?", (gid,)).fetchone()
@@ -644,7 +683,7 @@ def post_announcement(gid):
 
 @app.route("/admin/<int:gid>/toggle-status", methods=["POST"])
 def toggle_status(gid):
-    require_organiser(gid)   # ← blocks anyone who isn't the organiser
+    require_organiser(gid)          # ← BLOCKS anyone who is not the organiser
 
     db    = get_db()
     group = db.execute("SELECT * FROM study_groups WHERE id=?", (gid,)).fetchone()
@@ -658,12 +697,13 @@ def toggle_status(gid):
     return redirect(url_for("admin_panel", gid=gid))
 
 
-# ─────────────────────────── Other routes ────────────────────────────────────
+# ─────────────────────────── Dashboard ───────────────────────────────────────
 
 @app.route("/dashboard")
 def dashboard():
-    db     = get_db()
-    email  = request.args.get("email", "").strip()
+    logged_in_email = current_user()
+    db    = get_db()
+    email = logged_in_email or request.args.get("email", "").strip()
     result = None
 
     if email:
@@ -686,13 +726,23 @@ def dashboard():
                 ORDER BY jr.requested_at DESC
             """, (email,)).fetchall()
 
+            my_organised = db.execute("""
+                SELECT * FROM study_groups
+                WHERE LOWER(contact_email)=LOWER(?)
+                ORDER BY created_at DESC
+            """, (email,)).fetchall()
+
             result = {
                 "email": email,
                 "my_groups": my_groups,
                 "my_requests": my_requests,
+                "my_organised": my_organised,
             }
 
-    return render_template("dashboard.html", result=result)
+    return render_template("dashboard.html",
+        result=result,
+        logged_in=bool(logged_in_email),
+        user_name=session.get("user_name"))
 
 
 @app.route("/success")
@@ -702,11 +752,11 @@ def success():
         group_name=request.args.get("group_name", "the group"))
 
 
-# ─────────────────────────── Error handlers ───────────────────────────────────
+# ─────────────────────────── Error handlers ──────────────────────────────────
 
 @app.errorhandler(403)
 def forbidden(_):
-    return render_template("404.html"), 403   # reuse 404 template or make a 403.html
+    return render_template("404.html"), 403
 
 @app.errorhandler(404)
 def not_found(_):
@@ -715,6 +765,15 @@ def not_found(_):
 @app.errorhandler(500)
 def server_error(_):
     return render_template("404.html"), 500
+
+
+# Makes current_user available in every template automatically
+@app.context_processor
+def inject_user():
+    return {
+        "current_user_email": current_user(),
+        "current_user_name":  session.get("user_name"),
+    }
 
 
 if __name__ == "__main__":
