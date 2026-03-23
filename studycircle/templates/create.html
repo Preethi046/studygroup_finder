@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% block title %}Create Study Group — StudyCircle{% endblock %}
+
+{% block content %}
+<section class="sc-form-sec">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-lg-7">
+
+        <div class="mb-4">
+          <a href="{{ url_for('index') }}" class="sc-back-lt">
+            <i class="bi bi-arrow-left me-1"></i>Back to Groups
+          </a>
+        </div>
+
+        <h1 class="sc-form-title">Create a Study Group</h1>
+        <p class="text-muted mb-4">
+          Fields marked <span class="req">*</span> are required.
+          You'll be automatically added as the organiser.
+        </p>
+
+        <div class="sc-form-card">
+          <form id="createForm" method="POST"
+                action="{{ url_for('create') }}" novalidate>
+
+            <!-- Group Name -->
+            <div class="sc-fg">
+              <label class="sc-lbl" for="name">Group Name <span class="req">*</span></label>
+              <input type="text" id="name" name="name"
+                     class="form-control sc-inp"
+                     placeholder="e.g. Data Structures Warriors"
+                     value="{{ form_data.get('name','') }}" maxlength="80"/>
+              <div class="sc-err" id="nameErr"></div>
+            </div>
+
+            <!-- Subject -->
+            <div class="sc-fg">
+              <label class="sc-lbl" for="subject">Subject <span class="req">*</span></label>
+              <select id="subject" name="subject" class="form-select sc-inp">
+                <option value="">— Select a subject —</option>
+                {% for s in ['Mathematics','Physics','Chemistry','Biology',
+                             'Computer Science','Data Science','Engineering',
+                             'English Literature','History','Economics',
+                             'Psychology','Law','Medicine','Other'] %}
+                  <option value="{{ s }}"
+                    {% if form_data.get('subject')==s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+              </select>
+              <div class="sc-err" id="subjectErr"></div>
+            </div>
+
+            <!-- Description -->
+            <div class="sc-fg">
+              <label class="sc-lbl" for="description">
+                Description <span class="req">*</span>
+              </label>
+              <textarea id="description" name="description"
+                        class="form-control sc-inp" rows="4"
+                        maxlength="500"
+                        placeholder="What will your group study? Topics, goals, approach, expectations for members…">{{ form_data.get('description','') }}</textarea>
+              <div class="d-flex justify-content-between mt-1">
+                <div class="sc-err" id="descErr"></div>
+                <small class="text-muted" id="descCnt">0 / 500</small>
+              </div>
+            </div>
+
+            <!-- Location + Schedule -->
+            <div class="row g-3 sc-fg">
+              <div class="col-md-6">
+                <label class="sc-lbl" for="location">
+                  Location <span class="req">*</span>
+                </label>
+                <input type="text" id="location" name="location"
+                       class="form-control sc-inp"
+                       placeholder="Library Room 3 / Online (Google Meet)"
+                       value="{{ form_data.get('location','') }}"/>
+                <div class="sc-err" id="locationErr"></div>
+              </div>
+              <div class="col-md-6">
+                <label class="sc-lbl" for="schedule">
+                  Schedule <span class="req">*</span>
+                </label>
+                <input type="text" id="schedule" name="schedule"
+                       class="form-control sc-inp"
+                       placeholder="Sat & Sun 3–5 PM"
+                       value="{{ form_data.get('schedule','') }}"/>
+                <div class="sc-err" id="schedErr"></div>
+              </div>
+            </div>
+
+            <!-- Max Members + Organiser -->
+            <div class="row g-3 sc-fg">
+              <div class="col-md-4">
+                <label class="sc-lbl" for="max_members">
+                  Max Members <span class="req">*</span>
+                </label>
+                <input type="number" id="max_members" name="max_members"
+                       class="form-control sc-inp"
+                       placeholder="2 – 50" min="2" max="50"
+                       value="{{ form_data.get('max_members','') }}"/>
+                <div class="sc-err" id="maxErr"></div>
+              </div>
+              <div class="col-md-8">
+                <label class="sc-lbl" for="organiser">
+                  Your Full Name <span class="req">*</span>
+                </label>
+                <input type="text" id="organiser" name="organiser"
+                       class="form-control sc-inp"
+                       placeholder="Your name (you become the organiser)"
+                       value="{{ form_data.get('organiser','') }}" maxlength="80"/>
+                <div class="sc-err" id="organiserErr"></div>
+              </div>
+            </div>
+
+            <!-- Contact Email -->
+            <div class="sc-fg">
+              <label class="sc-lbl" for="contact_email">
+                Contact Email <span class="req">*</span>
+              </label>
+              <input type="email" id="contact_email" name="contact_email"
+                     class="form-control sc-inp"
+                     placeholder="you@example.com"
+                     value="{{ form_data.get('contact_email','') }}"/>
+              <div class="sc-err" id="emailErr"></div>
+            </div>
+
+            <!-- Tags -->
+            <div class="sc-fg">
+              <label class="sc-lbl" for="tags">
+                Tags
+                <small class="text-muted fw-normal">(optional, comma-separated)</small>
+              </label>
+              <input type="text" id="tags" name="tags"
+                     class="form-control sc-inp"
+                     placeholder="e.g. DSA, LeetCode, Placements, Problem Solving"
+                     value="{{ form_data.get('tags','') }}" maxlength="120"/>
+              <div class="sc-hint">
+                <i class="bi bi-tag me-1"></i>
+                Tags help students discover your group when searching.
+              </div>
+            </div>
+
+            <button type="submit" class="btn sc-btn-acc w-100 btn-lg mt-2" id="createBtn">
+              <i class="bi bi-check-circle me-2"></i>Create Study Group
+            </button>
+
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(function(){
+  var ERX=/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  function ok($el,id){$el.addClass("is-valid").removeClass("is-invalid");$("#"+id).text("");}
+  function bad($el,id,msg){$el.addClass("is-invalid").removeClass("is-valid");$("#"+id).text(msg);}
+  function chk($el,id,fn,msg){var v=$.trim($el.val());if(fn(v)){ok($el,id);return true;}bad($el,id,msg);return false;}
+
+  $("#description").on("input",function(){
+    var n=$(this).val().length;
+    $("#descCnt").text(n+" / 500");
+    if(n>=20) ok($(this),"descErr");
+  });
+
+  var rules=[
+    ["#name","nameErr",function(v){return v.length>=3;},"Group name must be at least 3 characters."],
+    ["#subject","subjectErr",function(v){return v!="";},"Please select a subject."],
+    ["#description","descErr",function(v){return v.length>=20;},"Description must be at least 20 characters."],
+    ["#location","locationErr",function(v){return v.length>0;},"Location is required."],
+    ["#schedule","schedErr",function(v){return v.length>0;},"Schedule is required."],
+    ["#max_members","maxErr",function(v){return +v>=2&&+v<=50;},"Must be between 2 and 50."],
+    ["#organiser","organiserErr",function(v){return v.length>=3;},"Name must be at least 3 characters."],
+    ["#contact_email","emailErr",function(v){return ERX.test(v);},"Enter a valid email address."]
+  ];
+
+  rules.forEach(function(r){
+    $(r[0]).on("blur change",function(){chk($(this),r[1],r[2],r[3]);});
+  });
+
+  $("#createForm").on("submit",function(e){
+    var ok=true;
+    rules.forEach(function(r){
+      if(!chk($(r[0]),r[1],r[2],r[3])) ok=false;
+    });
+    if(!ok){
+      e.preventDefault();
+      $("html,body").animate({scrollTop:$(".is-invalid").first().offset().top-130},300);
+    } else {
+      $("#createBtn").prop("disabled",true)
+        .html('<span class="spinner-border spinner-border-sm me-2"></span>Creating group…');
+    }
+  });
+});
+</script>
+{% endblock %}

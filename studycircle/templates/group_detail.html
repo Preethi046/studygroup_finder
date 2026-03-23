@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+{% block title %}{{ group['name'] }} — StudyCircle{% endblock %}
+
+{% block content %}
+
+<!-- ── Detail hero ───────────────────────────────────────── -->
+<section class="sc-detail-hero">
+  <div class="container">
+    <div class="mb-3">
+      <a href="{{ url_for('index') }}" class="sc-back">
+        <i class="bi bi-arrow-left me-1"></i>Back to Groups
+      </a>
+    </div>
+    <div class="row g-4 align-items-start">
+      <div class="col-lg-8">
+        <span class="sc-sbadge-lg mb-2 d-inline-block">{{ group['subject'] }}</span>
+        {% if group['status'] == 'closed' %}
+          <span class="sc-slot closed ms-2">Closed</span>
+        {% endif %}
+        <h1 class="sc-dtitle mt-2">{{ group['name'] }}</h1>
+        <p class="sc-ddesc">{{ group['description'] }}</p>
+        {% if group['tags'] %}
+          <div class="sc-tags mt-2">
+            {% for tag in group['tags'].split(',') %}
+              <a href="{{ url_for('index', tag=tag.strip()) }}" class="sc-tag">
+                {{ tag.strip() }}
+              </a>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Info sidebar -->
+      <div class="col-lg-4">
+        <div class="sc-info-card">
+          <ul class="sc-info-list">
+            <li>
+              <i class="bi bi-geo-alt-fill"></i>
+              <div><small>Location</small><strong>{{ group['location'] }}</strong></div>
+            </li>
+            <li>
+              <i class="bi bi-clock-fill"></i>
+              <div><small>Schedule</small><strong>{{ group['schedule'] }}</strong></div>
+            </li>
+            <li>
+              <i class="bi bi-people-fill"></i>
+              <div>
+                <small>Members</small>
+                <strong>{{ mc }} / {{ group['max_members'] }}</strong>
+              </div>
+            </li>
+            <li>
+              <i class="bi bi-person-fill"></i>
+              <div><small>Organiser</small><strong>{{ group['organiser'] }}</strong></div>
+            </li>
+            <li>
+              <i class="bi bi-envelope-fill"></i>
+              <div>
+                <small>Contact</small>
+                <strong>
+                  <a href="mailto:{{ group['contact_email'] }}" class="sc-mail-link">
+                    {{ group['contact_email'] }}
+                  </a>
+                </strong>
+              </div>
+            </li>
+            <li>
+              <i class="bi bi-calendar3"></i>
+              <div><small>Created</small><strong>{{ group['created_at'][:10] }}</strong></div>
+            </li>
+          </ul>
+
+          <!-- Capacity bar -->
+          <div class="mt-3">
+            <div class="d-flex justify-content-between mb-1">
+              <small class="text-muted">Capacity</small>
+              <small class="text-muted">
+                {% set pct = ((mc / group['max_members']) * 100)|int %}
+                {{ pct }}% full
+              </small>
+            </div>
+            <div class="sc-prog">
+              <div class="sc-prog-fill {% if mc >= group['max_members'] %}full{% endif %}"
+                   style="width:{{ pct }}%"></div>
+            </div>
+          </div>
+
+          <!-- CTA -->
+          <div class="mt-3 d-grid gap-2">
+            {% if mc < group['max_members'] and group['status'] == 'open' %}
+              <a href="{{ url_for('join_group', gid=group['id']) }}"
+                 class="btn sc-btn-acc">
+                <i class="bi bi-box-arrow-in-right me-2"></i>Request to Join
+              </a>
+            {% elif mc >= group['max_members'] %}
+              <button class="btn sc-btn-acc" disabled>
+                <i class="bi bi-lock-fill me-2"></i>Group Full
+              </button>
+            {% else %}
+              <button class="btn sc-btn-acc" disabled>Group Closed</button>
+            {% endif %}
+
+            <a href="{{ url_for('admin_panel', gid=group['id']) }}"
+               class="btn sc-btn-gear-lg">
+              <i class="bi bi-gear-fill me-2"></i>Admin Panel
+              {% if pc > 0 %}
+                <span class="badge bg-warning text-dark ms-1">{{ pc }}</span>
+              {% endif %}
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Body ─────────────────────────────────────────────── -->
+<section class="sc-dbody">
+  <div class="container">
+    <div class="row g-4">
+
+      <!-- Left col: Announcements + Discussions -->
+      <div class="col-lg-8">
+
+        <!-- Announcements -->
+        <h2 class="sc-sec-title mb-3">
+          <i class="bi bi-megaphone-fill me-2 text-warning"></i>Announcements
+          <span class="sc-cnt-badge ms-2">{{ announcements|length }}</span>
+        </h2>
+        {% if announcements %}
+          {% for ann in announcements %}
+            <div class="sc-ann-card mb-3">
+              <div class="sc-ann-hdr">
+                <span><i class="bi bi-pin-fill me-2 text-warning"></i>{{ ann['title'] }}</span>
+                <small class="text-muted">{{ ann['posted_at'][:10] }}</small>
+              </div>
+              <div class="sc-ann-body">{{ ann['body'] }}</div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="sc-empty-sm mb-4">
+            <i class="bi bi-megaphone text-muted me-2"></i>
+            No announcements yet.
+          </div>
+        {% endif %}
+
+        <!-- ── Discussion Board ──────────────────────────────── -->
+        <div id="discuss" class="mt-5">
+          <h2 class="sc-sec-title mb-3">
+            <i class="bi bi-chat-dots-fill me-2 text-info"></i>Discussion Board
+            <span class="sc-cnt-badge ms-2">{{ top_posts|length }}</span>
+          </h2>
+
+          <!-- Post a message -->
+          <div class="sc-discuss-form mb-4">
+            <div class="sc-discuss-form-hdr">
+              <i class="bi bi-pencil-square me-2"></i>Post a Message
+            </div>
+            <div class="sc-discuss-form-body">
+              <form method="POST" action="{{ url_for('post_discussion', gid=group['id']) }}" id="discussForm">
+                <div class="row g-2 mb-2">
+                  <div class="col-md-6">
+                    <input type="text" name="author" class="form-control sc-inp"
+                           placeholder="Your name *" maxlength="80" required/>
+                  </div>
+                  <div class="col-md-6">
+                    <input type="email" name="email" class="form-control sc-inp"
+                           placeholder="Your email *" required/>
+                  </div>
+                </div>
+                <textarea name="message" class="form-control sc-inp mb-2"
+                          rows="3" placeholder="Write your message… (questions, resources, introductions)" 
+                          maxlength="1000" required></textarea>
+                <input type="hidden" name="parent_id" value=""/>
+                <button type="submit" class="btn sc-btn-acc btn-sm">
+                  <i class="bi bi-send me-1"></i>Post Message
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <!-- Posts list -->
+          {% if top_posts %}
+            {% for post in top_posts %}
+              <div class="sc-post" id="post-{{ post['id'] }}">
+                <div class="d-flex align-items-start gap-3">
+                  <div class="sc-av">{{ post['author'][0]|upper }}</div>
+                  <div class="flex-grow-1">
+                    <div class="sc-post-hdr">
+                      <strong>{{ post['author'] }}</strong>
+                      <small class="text-muted ms-2">{{ post['posted_at'][:16].replace('T',' ') }}</small>
+                    </div>
+                    <div class="sc-post-body">{{ post['message'] }}</div>
+
+                    <!-- Replies -->
+                    {% if replies.get(post['id']) %}
+                      <div class="sc-replies mt-3">
+                        {% for rep in replies[post['id']] %}
+                          <div class="sc-reply d-flex gap-2">
+                            <div class="sc-av sm">{{ rep['author'][0]|upper }}</div>
+                            <div>
+                              <span class="fw-500">{{ rep['author'] }}</span>
+                              <small class="text-muted ms-2">{{ rep['posted_at'][:16] }}</small>
+                              <div class="sc-post-body">{{ rep['message'] }}</div>
+                            </div>
+                          </div>
+                        {% endfor %}
+                      </div>
+                    {% endif %}
+
+                    <!-- Reply toggle -->
+                    <button class="sc-reply-toggle mt-2"
+                            data-pid="{{ post['id'] }}">
+                      <i class="bi bi-reply me-1"></i>Reply
+                    </button>
+                    <div class="sc-reply-form mt-2" id="rf-{{ post['id'] }}" style="display:none">
+                      <form method="POST" action="{{ url_for('post_discussion', gid=group['id']) }}">
+                        <div class="row g-2 mb-2">
+                          <div class="col-sm-6">
+                            <input type="text" name="author" class="form-control sc-inp"
+                                   placeholder="Your name" required maxlength="80"/>
+                          </div>
+                          <div class="col-sm-6">
+                            <input type="email" name="email" class="form-control sc-inp"
+                                   placeholder="Your email" required/>
+                          </div>
+                        </div>
+                        <textarea name="message" class="form-control sc-inp mb-2"
+                                  rows="2" placeholder="Write a reply…" required maxlength="500"></textarea>
+                        <input type="hidden" name="parent_id" value="{{ post['id'] }}"/>
+                        <button type="submit" class="btn sc-btn-acc btn-sm">
+                          <i class="bi bi-send me-1"></i>Post Reply
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="sc-empty-sm">
+              <i class="bi bi-chat text-muted me-2"></i>
+              No messages yet. Start the conversation!
+            </div>
+          {% endif %}
+        </div>
+
+      </div>
+
+      <!-- Right col: Members -->
+      <div class="col-lg-4">
+        <div class="sc-members-card">
+          <div class="sc-members-hdr">
+            <i class="bi bi-people-fill me-2"></i>Members
+            <span class="sc-cnt-badge ms-2">{{ mc }}</span>
+          </div>
+          <div class="sc-members-body">
+            {% if members %}
+              {% for m in members %}
+                <div class="sc-mrow">
+                  <div class="sc-av">{{ m['full_name'][0]|upper }}</div>
+                  <div class="sc-minfo">
+                    <strong>{{ m['full_name'] }}</strong>
+                    <small>{{ m['email'] }}</small>
+                    <small class="text-muted">{{ m['student_id'] }}</small>
+                  </div>
+                  <span class="sc-rbadge {{ m['role'] }}">
+                    {% if m['role'] == 'organiser' %}
+                      <i class="bi bi-star-fill me-1"></i>
+                    {% endif %}
+                    {{ m['role']|title }}
+                  </span>
+                </div>
+              {% endfor %}
+            {% else %}
+              <p class="text-muted p-3 mb-0">No members yet.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(function(){
+  // Toggle reply forms
+  $(".sc-reply-toggle").on("click", function(){
+    var pid = $(this).data("pid");
+    var $rf = $("#rf-" + pid);
+    $rf.toggle();
+    if($rf.is(":visible")) $rf.find("input[name='author']").focus();
+  });
+});
+</script>
+{% endblock %}

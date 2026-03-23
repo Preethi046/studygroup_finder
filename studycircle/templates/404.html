@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Page Not Found — StudyCircle{% endblock %}
+{% block content %}
+<section class="sc-success-sec">
+  <div class="container text-center">
+    <div class="sc-success-ico mb-4">&#128269;</div>
+    <h1 class="sc-success-title">Page Not Found</h1>
+    <p class="sc-success-msg">
+      The page you're looking for doesn't exist or has been moved.
+    </p>
+    <div class="d-flex gap-3 justify-content-center flex-wrap mt-4">
+      <a href="{{ url_for('index') }}" class="btn sc-btn-acc btn-lg">
+        <i class="bi bi-house me-2"></i>Back to Home
+      </a>
+    </div>
+  </div>
+</section>
+{% endblock %}

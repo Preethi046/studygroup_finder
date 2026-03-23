@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}
+  {% if action == 'requested' %}Request Sent
+  {% elif action == 'created' %}Group Created
+  {% else %}Success{% endif %}
+  — StudyCircle
+{% endblock %}
+
+{% block content %}
+<section class="sc-success-sec">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-6 text-center">
+        <div class="sc-success-ico mb-4">
+          {% if action == 'requested' %}&#128233;
+          {% elif action == 'created' %}&#9989;
+          {% else %}&#127881;{% endif %}
+        </div>
+        <h1 class="sc-success-title">
+          {% if action == 'requested' %}Request Sent!
+          {% elif action == 'created' %}Group Created!
+          {% else %}You're In!{% endif %}
+        </h1>
+        <p class="sc-success-msg">
+          {% if action == 'requested' %}
+            Your join request for <strong>&ldquo;{{ group_name }}&rdquo;</strong> has been sent.
+            The organiser will review your request and get back to you via email.
+            This usually takes 1–2 days.
+          {% elif action == 'created' %}
+            <strong>&ldquo;{{ group_name }}&rdquo;</strong> is now live!
+            Share the link with your classmates and start building your circle.
+          {% else %}
+            You've joined <strong>&ldquo;{{ group_name }}&rdquo;</strong>.
+            Check your email for next steps from the organiser.
+          {% endif %}
+        </p>
+        <div class="d-flex gap-3 justify-content-center flex-wrap mt-4">
+          <a href="{{ url_for('index') }}" class="btn sc-btn-acc btn-lg">
+            <i class="bi bi-grid me-2"></i>Browse Groups
+          </a>
+          <a href="{{ url_for('create') }}" class="btn sc-btn-ghost btn-lg">
+            <i class="bi bi-plus-circle me-2"></i>Create Another
+          </a>
+        </div>
+        <div class="mt-4">
+          <a href="{{ url_for('dashboard') }}" class="sc-back-lt">
+            <i class="bi bi-person-circle me-1"></i>Go to My Dashboard
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

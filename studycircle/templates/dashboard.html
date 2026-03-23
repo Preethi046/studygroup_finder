@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}My Dashboard — StudyCircle{% endblock %}
+
+{% block content %}
+<section class="sc-form-sec">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-lg-8">
+
+        <h1 class="sc-form-title mb-1">
+          <i class="bi bi-person-circle me-2"></i>My Dashboard
+        </h1>
+        <p class="text-muted mb-4">
+          Enter your college email to see your groups and join requests.
+        </p>
+
+        <!-- Email lookup form -->
+        <div class="sc-form-card mb-4">
+          <form method="GET" action="{{ url_for('dashboard') }}" id="dashForm">
+            <div class="row g-2 align-items-end">
+              <div class="col-md-8">
+                <label class="sc-lbl" for="email">Your College Email</label>
+                <input type="email" name="email" id="dashEmail"
+                       class="form-control sc-inp"
+                       placeholder="yourname@college.edu"
+                       value="{{ result.email if result else '' }}"/>
+              </div>
+              <div class="col-md-4">
+                <button type="submit" class="btn sc-btn-acc w-100">
+                  <i class="bi bi-search me-2"></i>Look Up
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        {% if result %}
+
+          <!-- My Groups -->
+          <h2 class="sc-sec-title mb-3">
+            <i class="bi bi-people-fill me-2 text-info"></i>
+            My Groups
+            <span class="sc-cnt-badge ms-2">{{ result.my_groups|length }}</span>
+          </h2>
+
+          {% if result.my_groups %}
+            <div class="row g-3 mb-5">
+              {% for g in result.my_groups %}
+                <div class="col-md-6">
+                  <div class="sc-dash-card">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                      <span class="sc-sbadge">{{ g['subject'] }}</span>
+                      <span class="sc-rbadge {{ g['role'] }}">{{ g['role']|title }}</span>
+                    </div>
+                    <h3 class="sc-dash-name">{{ g['name'] }}</h3>
+                    <ul class="sc-meta small mb-3">
+                      <li><i class="bi bi-geo-alt-fill"></i> {{ g['location'] }}</li>
+                      <li><i class="bi bi-clock-fill"></i> {{ g['schedule'] }}</li>
+                      <li><i class="bi bi-calendar3"></i> Joined {{ g['my_joined'][:10] }}</li>
+                    </ul>
+                    <div class="d-flex gap-2">
+                      <a href="{{ url_for('group_detail', gid=g['id']) }}"
+                         class="btn sc-btn-view btn-sm">
+                        <i class="bi bi-eye me-1"></i>View
+                      </a>
+                      {% if g['role'] == 'organiser' %}
+                        <a href="{{ url_for('admin_panel', gid=g['id']) }}"
+                           class="btn sc-btn-gear btn-sm">
+                          <i class="bi bi-gear-fill me-1"></i>Admin
+                        </a>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="sc-empty-sm mb-5">
+              <i class="bi bi-people text-muted me-2"></i>
+              You're not a member of any groups yet.
+              <a href="{{ url_for('index') }}" class="ms-1">Browse groups</a>
+            </div>
+          {% endif %}
+
+          <!-- My Requests -->
+          <h2 class="sc-sec-title mb-3">
+            <i class="bi bi-send me-2 text-warning"></i>
+            My Join Requests
+            <span class="sc-cnt-badge ms-2">{{ result.my_requests|length }}</span>
+          </h2>
+
+          {% if result.my_requests %}
+            <div class="sc-adm-card">
+              {% for req in result.my_requests %}
+                <div class="sc-hist-row">
+                  <div class="sc-av sm">{{ req['full_name'][0]|upper }}</div>
+                  <div class="flex-grow-1">
+                    <div class="fw-500">{{ req['group_name'] }}</div>
+                    <small class="text-muted">
+                      {{ req['subject'] }} &middot; Requested {{ req['requested_at'][:10] }}
+                    </small>
+                  </div>
+                  {% if req['status'] == 'pending' %}
+                    <span class="badge bg-warning text-dark">Pending</span>
+                  {% elif req['status'] == 'approved' %}
+                    <span class="badge bg-success">Approved</span>
+                  {% else %}
+                    <span class="badge bg-danger">Rejected</span>
+                  {% endif %}
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="sc-empty-sm">
+              <i class="bi bi-send text-muted me-2"></i>
+              No join requests found for this email.
+              <a href="{{ url_for('index') }}" class="ms-1">Browse groups to join one</a>
+            </div>
+          {% endif %}
+
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

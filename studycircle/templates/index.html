@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+{% block title %}StudyCircle — Find Your Study Group{% endblock %}
+
+{% block content %}
+
+<!-- ── Hero ─────────────────────────────────────────────── -->
+<section class="sc-hero">
+  <div class="container">
+    <div class="row align-items-center g-5">
+      <div class="col-lg-7">
+        <p class="sc-eyebrow">&#127891; Study smarter, together</p>
+        <h1 class="sc-hero-title">Find Your<br><em class="sc-accent">Study Circle</em></h1>
+        <p class="sc-hero-sub">
+          Connect with students who share your subjects.
+          Join a group, set a schedule, and reach your academic goals — together.
+        </p>
+        <div class="d-flex gap-3 flex-wrap mt-4">
+          <a href="{{ url_for('create') }}" class="btn sc-btn-acc btn-lg">
+            <i class="bi bi-plus-circle me-2"></i>Create a Group
+          </a>
+          <a href="#groups" class="btn sc-btn-ghost btn-lg">
+            <i class="bi bi-arrow-down me-2"></i>Browse Groups
+          </a>
+        </div>
+      </div>
+      <div class="col-lg-5 d-none d-lg-flex justify-content-center">
+        <div class="sc-orbs">
+          <div class="orb o1">&#128218;</div>
+          <div class="orb o2">&#129518;</div>
+          <div class="orb o3">&#128300;</div>
+          <div class="orb o4">&#128187;</div>
+          <div class="orb o5">&#9998;</div>
+          <div class="orb-c">&#9678;</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Stats bar ─────────────────────────────────────────── -->
+<div class="sc-stats">
+  <div class="container">
+    <div class="row text-center g-0">
+      <div class="col-4 sc-stat">
+        <span class="sc-sn">{{ groups|length }}</span>
+        <span class="sc-sl">Active Groups</span>
+      </div>
+      <div class="col-4 sc-stat">
+        <span class="sc-sn">{{ subjects|length }}</span>
+        <span class="sc-sl">Subjects</span>
+      </div>
+      <div class="col-4 sc-stat">
+        <span class="sc-sn">&#8734;</span>
+        <span class="sc-sl">Possibilities</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Browse ────────────────────────────────────────────── -->
+<section id="groups" class="sc-browse">
+  <div class="container">
+
+    <!-- Search bar -->
+    <form method="GET" action="{{ url_for('index') }}" id="filterForm">
+      <div class="sc-searchbar">
+        <div class="row g-2 align-items-center">
+          <div class="col-lg-5 col-md-12">
+            <div class="input-group">
+              <span class="input-group-text sc-search-icon">
+                <i class="bi bi-search"></i>
+              </span>
+              <input type="text" name="q" id="liveSearch"
+                     class="form-control sc-search-inp"
+                     placeholder="Search by name, topic, tag, or organiser…"
+                     value="{{ query }}" autocomplete="off"/>
+            </div>
+          </div>
+          <div class="col-lg-3 col-md-6">
+            <select name="subject" class="form-select sc-sel">
+              <option value="">All Subjects</option>
+              {% for s in subjects %}
+                <option value="{{ s['subject'] }}"
+                  {% if subject_filter == s['subject'] %}selected{% endif %}>
+                  {{ s['subject'] }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-lg-2 col-md-3">
+            <button type="submit" class="btn sc-btn-acc w-100">
+              <i class="bi bi-funnel me-1"></i>Filter
+            </button>
+          </div>
+          <div class="col-lg-2 col-md-3">
+            <a href="{{ url_for('index') }}" class="btn sc-btn-ghost-sm w-100">
+              <i class="bi bi-x me-1"></i>Clear
+            </a>
+          </div>
+        </div>
+        {% if tag_filter %}
+          <div class="mt-2">
+            <span class="sc-active-filter">
+              Tag: {{ tag_filter }}
+              <a href="{{ url_for('index') }}" class="ms-1 text-white">&#10005;</a>
+            </span>
+          </div>
+        {% endif %}
+      </div>
+    </form>
+
+    <!-- Results header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h2 class="sc-sec-title mb-0">
+        {% if query or subject_filter or tag_filter %}
+          Results
+          {% if query %} for &ldquo;{{ query }}&rdquo;{% endif %}
+          {% if subject_filter %} &middot; {{ subject_filter }}{% endif %}
+        {% else %}All Study Groups{% endif %}
+      </h2>
+      <span class="sc-cnt-badge">
+        {{ groups|length }} group{% if groups|length != 1 %}s{% endif %}
+      </span>
+    </div>
+
+    <!-- Cards grid -->
+    {% if groups %}
+      <div class="row g-4" id="cardGrid">
+        {% for g in groups %}
+          {% set full = g.member_count >= g['max_members'] %}
+          <div class="col-md-6 col-lg-4 sc-card-col sc-fade"
+               style="animation-delay:{{ loop.index0 * 55 }}ms">
+            <div class="sc-card h-100 d-flex flex-column">
+
+              <!-- Top row -->
+              <div class="sc-card-top">
+                <span class="sc-sbadge">{{ g['subject'] }}</span>
+                {% if full %}
+                  <span class="sc-slot full">
+                    <i class="bi bi-lock-fill me-1"></i>Full
+                  </span>
+                {% elif g['status'] == 'closed' %}
+                  <span class="sc-slot closed">
+                    <i class="bi bi-dash-circle me-1"></i>Closed
+                  </span>
+                {% else %}
+                  <span class="sc-slot open">
+                    <i class="bi bi-people-fill me-1"></i>
+                    {{ g['max_members'] - g.member_count }} spot{% if g['max_members'] - g.member_count != 1 %}s{% endif %} left
+                  </span>
+                {% endif %}
+              </div>
+
+              <!-- Name -->
+              <h3 class="sc-card-name">
+                <a href="{{ url_for('group_detail', gid=g['id']) }}" class="sc-name-link">
+                  {{ g['name'] }}
+                </a>
+              </h3>
+
+              <!-- Description -->
+              <p class="sc-card-desc">
+                {{ g['description'][:130] }}{% if g['description']|length > 130 %}…{% endif %}
+              </p>
+
+              <!-- Tags -->
+              {% if g['tags'] %}
+                <div class="sc-tags mb-2">
+                  {% for tag in g['tags'].split(',')[:4] %}
+                    <a href="{{ url_for('index', tag=tag.strip()) }}"
+                       class="sc-tag">{{ tag.strip() }}</a>
+                  {% endfor %}
+                </div>
+              {% endif %}
+
+              <!-- Meta -->
+              <ul class="sc-meta">
+                <li><i class="bi bi-geo-alt-fill"></i> {{ g['location'] }}</li>
+                <li><i class="bi bi-clock-fill"></i> {{ g['schedule'] }}</li>
+                <li>
+                  <i class="bi bi-people-fill"></i>
+                  {{ g.member_count }} / {{ g['max_members'] }} members
+                </li>
+                <li><i class="bi bi-person-fill"></i> {{ g['organiser'] }}</li>
+              </ul>
+
+              <!-- Progress bar -->
+              <div class="sc-prog mb-3">
+                <div class="sc-prog-fill {% if full %}full{% endif %}"
+                     style="width:{{ ((g.member_count / g['max_members']) * 100)|int }}%">
+                </div>
+              </div>
+
+              <!-- Actions -->
+              <div class="sc-card-acts mt-auto">
+                <a href="{{ url_for('group_detail', gid=g['id']) }}"
+                   class="btn sc-btn-view btn-sm">
+                  <i class="bi bi-eye me-1"></i>View
+                </a>
+                {% if not full and g['status'] == 'open' %}
+                  <a href="{{ url_for('join_group', gid=g['id']) }}"
+                     class="btn sc-btn-join btn-sm">
+                    <i class="bi bi-box-arrow-in-right me-1"></i>Join
+                  </a>
+                {% else %}
+                  <button class="btn sc-btn-join btn-sm" disabled>
+                    {% if full %}Full{% else %}Closed{% endif %}
+                  </button>
+                {% endif %}
+                <a href="{{ url_for('admin_panel', gid=g['id']) }}"
+                   class="btn sc-btn-gear btn-sm ms-auto"
+                   title="Admin panel"
+                   data-bs-toggle="tooltip" data-bs-placement="top">
+                  <i class="bi bi-gear-fill"></i>
+                  {% if g.pending_count > 0 %}
+                    <span class="sc-pending-dot"></span>
+                  {% endif %}
+                </a>
+              </div>
+
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="sc-empty text-center py-5">
+        <div class="sc-empty-ico mb-3">&#128269;</div>
+        <h3>No groups found</h3>
+        <p class="text-muted mb-4">
+          {% if query or subject_filter or tag_filter %}
+            Try different keywords, or clear the filters.
+          {% else %}
+            Be the first to create a study group!
+          {% endif %}
+        </p>
+        <div class="d-flex gap-2 justify-content-center">
+          {% if query or subject_filter or tag_filter %}
+            <a href="{{ url_for('index') }}" class="btn sc-btn-ghost-sm">
+              <i class="bi bi-x me-1"></i>Clear Filters
+            </a>
+          {% endif %}
+          <a href="{{ url_for('create') }}" class="btn sc-btn-acc">
+            <i class="bi bi-plus-circle me-2"></i>Create a Group
+          </a>
+        </div>
+      </div>
+    {% endif %}
+
+  </div>
+</section>
+
+{% endblock %}

@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block title %}Join {{ group['name'] }} — StudyCircle{% endblock %}
+
+{% block content %}
+<section class="sc-form-sec">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-lg-7">
+
+        <div class="mb-4">
+          <a href="{{ url_for('group_detail', gid=group['id']) }}" class="sc-back-lt">
+            <i class="bi bi-arrow-left me-1"></i>Back to {{ group['name'] }}
+          </a>
+        </div>
+
+        <!-- Group summary -->
+        <div class="sc-join-summary">
+          <span class="sc-sbadge-lt">{{ group['subject'] }}</span>
+          <h1 class="sc-form-title mt-2">Request to Join</h1>
+          <div class="sc-join-meta">
+            <span><i class="bi bi-people-fill me-1"></i>{{ mc }}/{{ group['max_members'] }} members</span>
+            <span><i class="bi bi-clock-fill me-1"></i>{{ group['schedule'] }}</span>
+            <span><i class="bi bi-geo-alt-fill me-1"></i>{{ group['location'] }}</span>
+          </div>
+        </div>
+
+        <div class="sc-form-card mt-4">
+
+          <!-- Info banner -->
+          <div class="sc-info-banner">
+            <i class="bi bi-info-circle-fill me-2"></i>
+            Your request will be <strong>reviewed by the group organiser</strong> before you are added.
+            Fill in all fields accurately — incomplete requests are rejected.
+          </div>
+
+          <form id="joinForm" method="POST"
+                action="{{ url_for('join_group', gid=group['id']) }}"
+                novalidate>
+
+            <!-- Full Name -->
+            <div class="sc-fg">
+              <label class="sc-lbl" for="full_name">
+                Full Name <span class="req">*</span>
+              </label>
+              <input type="text" id="full_name" name="full_name"
+                     class="form-control sc-inp {% if form_data.get('full_name') %}was-validated{% endif %}"
+                     placeholder="e.g. Rahul Sharma"
+                     value="{{ form_data.get('full_name','') }}"
+                     maxlength="80" autocomplete="name"/>
+              <div class="sc-err" id="nameErr"></div>
+            </div>
+
+            <!-- Email -->
+            <div class="sc-fg">
+              <label class="sc-lbl" for="email">
+                College Email <span class="req">*</span>
+              </label>
+              <input type="email" id="email" name="email"
+                     class="form-control sc-inp"
+                     placeholder="yourname@college.edu"
+                     value="{{ form_data.get('email','') }}"
+                     autocomplete="email"/>
+              <div class="sc-hint">
+                <i class="bi bi-shield-check me-1"></i>
+                Use your official college email. This is how the organiser will contact you.
+              </div>
+              <div class="sc-err" id="emailErr"></div>
+            </div>
+
+            <!-- Student ID + Year -->
+            <div class="row g-3 sc-fg">
+              <div class="col-md-6">
+                <label class="sc-lbl" for="student_id">
+                  Student ID <span class="req">*</span>
+                </label>
+                <input type="text" id="student_id" name="student_id"
+                       class="form-control sc-inp"
+                       placeholder="e.g. 21CS045"
+                       value="{{ form_data.get('student_id','') }}"
+                       maxlength="20"/>
+                <div class="sc-err" id="sidErr"></div>
+              </div>
+              <div class="col-md-6">
+                <label class="sc-lbl" for="year_of_study">
+                  Year of Study <span class="req">*</span>
+                </label>
+                <select id="year_of_study" name="year_of_study" class="form-select sc-inp">
+                  <option value="">— Select year —</option>
+                  {% for yr in ['1st Year','2nd Year','3rd Year','4th Year','5th Year','Postgraduate','PhD','Other'] %}
+                    <option value="{{ yr }}"
+                      {% if form_data.get('year_of_study') == yr %}selected{% endif %}>
+                      {{ yr }}
+                    </option>
+                  {% endfor %}
+                </select>
+                <div class="sc-err" id="yearErr"></div>
+              </div>
+            </div>
+
+            <!-- Reason -->
+            <div class="sc-fg">
+              <label class="sc-lbl" for="reason">
+                Why do you want to join? <span class="req">*</span>
+              </label>
+              <textarea id="reason" name="reason"
+                        class="form-control sc-inp"
+                        rows="5"
+                        placeholder="Describe:&#10;• Your academic goals for this semester&#10;• What you hope to contribute to the group&#10;• Why this specific group is the right fit for you&#10;(minimum 20 characters)"
+                        maxlength="600">{{ form_data.get('reason','') }}</textarea>
+              <div class="d-flex justify-content-between mt-1">
+                <div class="sc-err" id="reasonErr"></div>
+                <small class="text-muted" id="rcnt">0 / 600</small>
+              </div>
+              <!-- Progress indicator for reason -->
+              <div class="sc-reason-bar mt-1">
+                <div class="sc-reason-fill" id="reasonBar" style="width:0%"></div>
+              </div>
+              <small class="text-muted" id="reasonStatus">Write at least 20 characters</small>
+            </div>
+
+            <!-- Validation summary (shown on submit if errors) -->
+            <div class="sc-val-summary" id="valSummary" style="display:none">
+              <i class="bi bi-exclamation-triangle-fill me-2"></i>
+              Please fix the errors above before submitting.
+            </div>
+
+            <button type="submit" class="btn sc-btn-acc w-100 btn-lg mt-2" id="joinBtn">
+              <i class="bi bi-send me-2"></i>Send Join Request
+            </button>
+
+            <p class="text-center text-muted mt-3 small">
+              By submitting, you agree to share your details with the group organiser.
+            </p>
+
+          </form>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(function(){
+  var ERX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  var MIN_REASON = 20;
+
+  function ok($el, id){ $el.addClass("is-valid").removeClass("is-invalid"); $("#"+id).text(""); }
+  function bad($el, id, msg){ $el.addClass("is-invalid").removeClass("is-valid"); $("#"+id).text(msg); }
+  function val($el, id, check, msg){ var v=$.trim($el.val()); if(check(v)){ok($el,id);return true;} bad($el,id,msg);return false; }
+
+  // Reason live char counter + progress bar
+  $("#reason").on("input", function(){
+    var n = $(this).val().length;
+    var pct = Math.min(100, Math.round(n / MIN_REASON * 100));
+    $("#rcnt").text(n + " / 600");
+    $("#reasonBar").css("width", pct + "%")
+      .toggleClass("good", n >= MIN_REASON);
+    if(n >= MIN_REASON){
+      $("#reasonStatus").text("Good — looking great!").addClass("text-success").removeClass("text-muted");
+      ok($(this), "reasonErr");
+    } else {
+      $("#reasonStatus").text((MIN_REASON - n) + " more characters needed")
+        .removeClass("text-success").addClass("text-muted");
+    }
+  });
+
+  // Trigger count on page load (repopulate)
+  if($("#reason").val().length > 0) $("#reason").trigger("input");
+
+  // Blur validators
+  $("#full_name").on("blur", function(){
+    val($(this),"nameErr",function(v){return v.length>=3;},"Full name must be at least 3 characters.");
+  });
+  $("#email").on("blur", function(){
+    val($(this),"emailErr",function(v){return ERX.test(v);},"Enter a valid email address.");
+  });
+  $("#student_id").on("blur", function(){
+    val($(this),"sidErr",function(v){return v.length>=4;},"Student ID must be at least 4 characters.");
+  });
+  $("#year_of_study").on("change", function(){
+    val($(this),"yearErr",function(v){return v!="";},"Please select your year of study.");
+  });
+  $("#reason").on("blur", function(){
+    val($(this),"reasonErr",function(v){return v.length>=MIN_REASON;},"Please write at least "+MIN_REASON+" characters.");
+  });
+
+  // Form submit
+  $("#joinForm").on("submit", function(e){
+    var checks = [
+      val($("#full_name"),"nameErr",function(v){return v.length>=3;},"Full name must be at least 3 characters."),
+      val($("#email"),"emailErr",function(v){return ERX.test(v);},"Enter a valid email address."),
+      val($("#student_id"),"sidErr",function(v){return v.length>=4;},"Student ID must be at least 4 characters."),
+      val($("#year_of_study"),"yearErr",function(v){return v!="";},"Please select your year of study."),
+      val($("#reason"),"reasonErr",function(v){return v.length>=MIN_REASON;},"Please write at least "+MIN_REASON+" characters.")
+    ];
+    if(checks.indexOf(false) > -1){
+      e.preventDefault();
+      $("#valSummary").show();
+      var $first = $(".is-invalid").first();
+      if($first.length){
+        $("html,body").animate({scrollTop: $first.offset().top - 130}, 300);
+        $first.focus();
+      }
+    } else {
+      $("#valSummary").hide();
+      $("#joinBtn").prop("disabled",true)
+        .html('<span class="spinner-border spinner-border-sm me-2"></span>Sending request…');
+    }
+  });
+});
+</script>
+{% endblock %}

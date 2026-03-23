@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+{% block title %}Admin Panel — {{ group['name'] }} — StudyCircle{% endblock %}
+
+{% block content %}
+<section class="sc-admin-page">
+  <div class="container">
+
+    <div class="mb-3">
+      <a href="{{ url_for('group_detail', gid=group['id']) }}" class="sc-back-lt">
+        <i class="bi bi-arrow-left me-1"></i>Back to {{ group['name'] }}
+      </a>
+    </div>
+
+    <!-- Admin header -->
+    <div class="sc-admin-banner mb-4">
+      <div>
+        <h1 class="sc-form-title mb-1">
+          <i class="bi bi-gear-fill me-2 text-warning"></i>Admin Panel
+        </h1>
+        <p class="mb-0 text-muted">
+          {{ group['name'] }} &middot; {{ group['subject'] }} &middot;
+          <strong>{{ mc }}/{{ group['max_members'] }}</strong> members
+        </p>
+      </div>
+      <div class="d-flex gap-2 flex-wrap mt-3 mt-md-0">
+        <form method="POST" action="{{ url_for('toggle_status', gid=group['id']) }}">
+          <button type="submit" class="btn {% if group['status']=='open' %}sc-btn-warn{% else %}sc-btn-ok{% endif %}">
+            {% if group['status'] == 'open' %}
+              <i class="bi bi-lock me-1"></i>Close Group
+            {% else %}
+              <i class="bi bi-unlock me-1"></i>Open Group
+            {% endif %}
+          </button>
+        </form>
+        <a href="{{ url_for('group_detail', gid=group['id']) }}"
+           class="btn sc-btn-ghost-sm" target="_blank">
+          <i class="bi bi-eye me-1"></i>Public View
+        </a>
+      </div>
+    </div>
+
+    <div class="row g-4">
+
+      <!-- ── Left col ───────────────────────────────────────── -->
+      <div class="col-lg-7">
+
+        <!-- Pending requests -->
+        <div class="sc-adm-card mb-4">
+          <div class="sc-adm-hdr">
+            <span><i class="bi bi-person-plus-fill me-2"></i>Pending Requests</span>
+            {% if pending %}
+              <span class="badge bg-warning text-dark">{{ pending|length }}</span>
+            {% else %}
+              <span class="badge bg-secondary">0</span>
+            {% endif %}
+          </div>
+          {% if pending %}
+            {% for req in pending %}
+              <div class="sc-req-row">
+                <div class="sc-av">{{ req['full_name'][0]|upper }}</div>
+                <div class="flex-grow-1 me-3">
+                  <div class="fw-600">{{ req['full_name'] }}</div>
+                  <small class="text-muted d-block">
+                    {{ req['email'] }} &middot; {{ req['student_id'] }} &middot; {{ req['year_of_study'] }}
+                  </small>
+                  <div class="sc-reason-txt mt-1">{{ req['reason'] }}</div>
+                  <small class="text-muted">Requested {{ req['requested_at'][:10] }}</small>
+                </div>
+                <div class="sc-req-acts">
+                  <form method="POST"
+                        action="{{ url_for('approve_request', gid=group['id'], rid=req['id']) }}">
+                    <button class="btn sc-btn-ok w-100 mb-1" type="submit">
+                      <i class="bi bi-check-lg"></i> Approve
+                    </button>
+                  </form>
+                  <form method="POST"
+                        action="{{ url_for('reject_request', gid=group['id'], rid=req['id']) }}"
+                        class="sc-reject-form">
+                    <button class="btn sc-btn-rej w-100" type="submit">
+                      <i class="bi bi-x-lg"></i> Reject
+                    </button>
+                  </form>
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="sc-adm-empty">
+              <i class="bi bi-check-all text-success me-2"></i>
+              No pending requests — you're all caught up!
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- History tabs -->
+        <div class="sc-adm-card">
+          <div class="sc-adm-hdr">
+            <span><i class="bi bi-clock-history me-2"></i>Request History</span>
+          </div>
+          <ul class="nav nav-tabs sc-tabs px-3 pt-2" id="histTabs">
+            <li class="nav-item">
+              <a class="nav-link active" data-bs-toggle="tab" href="#tab-approved">
+                Approved
+                {% if approved %}<span class="badge bg-success ms-1">{{ approved|length }}</span>{% endif %}
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" data-bs-toggle="tab" href="#tab-rejected">
+                Rejected
+                {% if rejected %}<span class="badge bg-danger ms-1">{{ rejected|length }}</span>{% endif %}
+              </a>
+            </li>
+          </ul>
+          <div class="tab-content p-3">
+            <div class="tab-pane fade show active" id="tab-approved">
+              {% if approved %}
+                {% for r in approved %}
+                  <div class="sc-hist-row">
+                    <div class="sc-av sm">{{ r['full_name'][0]|upper }}</div>
+                    <div>
+                      <div class="fw-500">{{ r['full_name'] }}</div>
+                      <small class="text-muted">{{ r['email'] }} &middot; {{ r['requested_at'][:10] }}</small>
+                    </div>
+                    <span class="badge bg-success ms-auto">Approved</span>
+                  </div>
+                {% endfor %}
+              {% else %}
+                <p class="text-muted mb-0">No approved requests yet.</p>
+              {% endif %}
+            </div>
+            <div class="tab-pane fade" id="tab-rejected">
+              {% if rejected %}
+                {% for r in rejected %}
+                  <div class="sc-hist-row">
+                    <div class="sc-av sm">{{ r['full_name'][0]|upper }}</div>
+                    <div>
+                      <div class="fw-500">{{ r['full_name'] }}</div>
+                      <small class="text-muted">{{ r['email'] }} &middot; {{ r['requested_at'][:10] }}</small>
+                    </div>
+                    <span class="badge bg-danger ms-auto">Rejected</span>
+                  </div>
+                {% endfor %}
+              {% else %}
+                <p class="text-muted mb-0">No rejected requests.</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── Right col ──────────────────────────────────────── -->
+      <div class="col-lg-5">
+
+        <!-- Post Announcement -->
+        <div class="sc-adm-card mb-4">
+          <div class="sc-adm-hdr">
+            <i class="bi bi-megaphone-fill me-2"></i>Post Announcement
+          </div>
+          <div class="p-3">
+            <form method="POST"
+                  action="{{ url_for('post_announcement', gid=group['id']) }}"
+                  id="annForm">
+              <div class="sc-fg">
+                <label class="sc-lbl">Title <span class="req">*</span></label>
+                <input type="text" name="title" class="form-control sc-inp"
+                       placeholder="e.g. Session this Saturday — 3 PM" maxlength="120"/>
+              </div>
+              <div class="sc-fg">
+                <label class="sc-lbl">Message <span class="req">*</span></label>
+                <textarea name="body" class="form-control sc-inp" rows="3"
+                          placeholder="Details, links, or updates for your group members…"
+                          maxlength="1000"></textarea>
+              </div>
+              <button type="submit" class="btn sc-btn-acc w-100">
+                <i class="bi bi-send me-2"></i>Post Announcement
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Members list with remove -->
+        <div class="sc-adm-card">
+          <div class="sc-adm-hdr">
+            <span><i class="bi bi-people-fill me-2"></i>Members</span>
+            <span class="sc-cnt-badge ms-auto">{{ members|length }}</span>
+          </div>
+          <div class="p-3">
+            {% for m in members %}
+              <div class="sc-hist-row align-items-center">
+                <div class="sc-av sm">{{ m['full_name'][0]|upper }}</div>
+                <div class="flex-grow-1">
+                  <div class="fw-500 small">{{ m['full_name'] }}</div>
+                  <small class="text-muted">{{ m['student_id'] }}</small>
+                </div>
+                <span class="sc-rbadge {{ m['role'] }} me-2">{{ m['role']|title }}</span>
+                {% if m['role'] != 'organiser' %}
+                  <form method="POST"
+                        action="{{ url_for('remove_member', gid=group['id'], mid=m['id']) }}"
+                        class="sc-remove-form">
+                    <button type="submit" class="btn btn-link text-danger p-0" title="Remove member"
+                            data-bs-toggle="tooltip">
+                      <i class="bi bi-person-x-fill"></i>
+                    </button>
+                  </form>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(function(){
+  // Confirm before reject
+  $(".sc-reject-form").on("submit", function(e){
+    var name = $(this).closest(".sc-req-row").find(".fw-600").text();
+    if(!confirm("Reject the request from " + name + "?\nThis cannot be undone.")) e.preventDefault();
+  });
+  // Confirm before remove member
+  $(".sc-remove-form").on("submit", function(e){
+    var name = $(this).closest(".sc-hist-row").find(".fw-500").text().trim();
+    if(!confirm("Remove " + name + " from this group?")) e.preventDefault();
+  });
+  // Announce form basic check
+  $("#annForm").on("submit", function(e){
+    var t=$.trim($(this).find("[name=title]").val());
+    var b=$.trim($(this).find("[name=body]").val());
+    if(!t||!b){ e.preventDefault(); alert("Both title and message are required."); }
+  });
+  // Bootstrap tooltips
+  $('[data-bs-toggle="tooltip"]').each(function(){ new bootstrap.Tooltip(this); });
+});
+</script>
+{% endblock %}
